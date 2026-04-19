@@ -18,12 +18,19 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
-func (cfg *apiConfig) requestsHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 
 	data := fmt.Sprintf("Hits: %v", cfg.fileserverHits.Load())
 	w.Write([]byte(data))
+}
+
+func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
+	cfg.fileserverHits.Store(0)
+
+	w.WriteHeader(200)
+	w.Write([]byte("request count reset"))
 }
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +49,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(fileServer))
 	mux.HandleFunc("/healthz", healthzHandler)
+	mux.HandleFunc("/metrics", apiCfg.metricsHandler)
+	mux.HandleFunc("/reset", apiCfg.resetHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
