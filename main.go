@@ -60,12 +60,13 @@ func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(params.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
+		return
 	}
 
 	type responseValues struct {
-		valid bool `json:"valid"`
+		Valid bool `json:"valid"`
 	}
-	respondWithJSON(w, 200, responseValues{valid: true})
+	respondWithJSON(w, 200, responseValues{Valid: true})
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
@@ -89,7 +90,7 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	data, err := json.Marshal(&payload)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("error marshalling the payload: %v\n", err)
 		w.WriteHeader(500)
@@ -116,7 +117,6 @@ func main() {
 
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
-	
 
 	server := &http.Server{
 		Addr:    ":8080",
