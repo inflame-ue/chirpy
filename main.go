@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync/atomic"
@@ -17,6 +18,14 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+func (cfg *apiConfig) requestsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+
+	data := fmt.Sprintf("Hits: %v", cfg.fileserverHits.Load())
+	w.Write([]byte(data))
+}
+
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
@@ -24,12 +33,14 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	apiCfg := apiConfig{}
+
 	filepathRoot := http.Dir(".")
-	fileServer := http.FileServer(filepathRoot)
+	fileServer := http.StripPrefix("/app", http.FileServer(filepathRoot))
 	port := "8080"
 
 	mux := http.NewServeMux()
-	mux.Handle("/app/", http.StripPrefix("/app", fileServer))
+	mux.Handle("/app/", apiCfg.middlewareMetricsInc(fileServer))
 	mux.HandleFunc("/healthz", healthzHandler)
 
 	server := &http.Server{
