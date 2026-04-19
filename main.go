@@ -1,15 +1,19 @@
 package main
 
 import (
+	"log"
 	"net/http"
 )
 
 func main() {
 	mux := http.NewServeMux()
+	directory := http.Dir(".")
+	mux.Handle("/", http.FileServer(directory))
+
 	server := http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 
-	server.ListenAndServe()
+	log.Fatal(server.ListenAndServe())
 }
