@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -156,6 +158,7 @@ func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 		Body      string    `json:"body"`
 		UserID    uuid.UUID `json:"user_id"`
 	}
+
 	respBody := []responseBody{}
 	for _, chirp := range chirps {
 		tempResp := responseBody{
@@ -166,6 +169,44 @@ func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
 			UserID:    chirp.UserID,
 		}
 		respBody = append(respBody, tempResp)
+	}
+
+	respondWithJSON(w, 200, respBody)
+}
+
+func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		log.Printf("failed to parse the chirp id: %v", err)
+		w.WriteHeader(400)
+		return
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("chirp not found: %v", err)
+			w.WriteHeader(404)
+			return
+		}
+		log.Printf("failed to retrive the record(smth bad happened): %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	type responseBody struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+	respBody := responseBody{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
 	}
 
 	respondWithJSON(w, 200, respBody)
