@@ -74,7 +74,7 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 	type responseBody struct {
 		Id        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"update_at"`
+		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
 	}
 	respBody := responseBody{
@@ -87,34 +87,62 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, 201, respBody)
 }
 
-func healthzHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write([]byte("200 OK"))
-}
-
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body string `json:"body"`
+		Body   string `json:"body"`
+		UserID string `json:"user_id"`
 	}
 
+	var params parameters
 	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
 	if err := decoder.Decode(&params); err != nil {
-		log.Printf("error decoding parameters: %v\n", err)
+		log.Printf("error decoding parameters: %v", err)
 		w.WriteHeader(500)
 		return
 	}
 
+	cleanedBody := cleanProfanity(params.Body)
 	if len(params.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
 	}
 
-	type responseValues struct {
-		CleanedBody string `json:"cleaned_body"`
+	user_id, err := uuid.Parse(params.UserID)
+	if err != nil {
+		log.Printf("error parsing the user id: %v", err)
+		w.WriteHeader(500)
+		return
 	}
-	responseBody := responseValues{
-		CleanedBody: cleanProfanity(params.Body),
+
+	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
+		Body:   cleanedBody,
+		UserID: user_id,
+	})
+	if err != nil {
+		log.Printf("failed to create a chirp record: %v", err)
+		w.WriteHeader(500)
+		return
 	}
-	respondWithJSON(w, 200, responseBody)
+
+	type responseBody struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+	respBody := responseBody{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	}
+
+	respondWithJSON(w, 201, respBody)
+}
+
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write([]byte("200 OK"))
 }
