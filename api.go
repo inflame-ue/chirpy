@@ -40,8 +40,15 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
 
+	err := cfg.dbQueries.DeleteUsers(r.Context())
+	if err != nil {
+		log.Printf("failed to delete the user records: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
 	w.WriteHeader(200)
-	w.Write([]byte("request count reset"))
+	w.Write([]byte("the state of the application was reset"))
 }
 
 func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) {
