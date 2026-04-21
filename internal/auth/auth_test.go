@@ -2,7 +2,6 @@ package auth
 
 import (
 	"log"
-	"net/http"
 	"testing"
 	"time"
 

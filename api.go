@@ -234,9 +234,8 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds *int   `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	var params parameters
@@ -245,16 +244,6 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error decoding the parameters: %v", err)
 		w.WriteHeader(500)
 		return
-	}
-
-	var expirationTime time.Duration
-
-	if params.ExpiresInSeconds == nil {
-		expirationTime = time.Duration(1 * time.Hour)
-	} else if time.Duration(*params.ExpiresInSeconds)*time.Second > time.Hour {
-		expirationTime = time.Duration(1 * time.Hour)
-	} else {
-		expirationTime = time.Duration(*params.ExpiresInSeconds) * time.Second
 	}
 
 	user, err := cfg.dbQueries.GetUserByEmail(r.Context(), params.Email)
@@ -276,26 +265,39 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, cfg.jwtToken, expirationTime)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtToken)
 	if err != nil {
 		log.Print(err)
 		w.WriteHeader(500)
 		return
 	}
+	refreshToken := auth.MakeRefreshToken()
+	_, err = cfg.dbQueries.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().UTC().Add(60 * 24 * time.Hour),
+	})
+	if err != nil {
+		log.Printf("failed to create the refresh token: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 
 	type responseBody struct {
-		Id        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		Id           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 	respBody := responseBody{
-		Id:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token,
+		Id:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	respondWithJSON(w, 200, respBody)
