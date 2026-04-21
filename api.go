@@ -104,8 +104,7 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 
 func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string `json:"body"`
-		UserID string `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	var params parameters
@@ -119,34 +118,26 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 	bearerToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		log.Print(err)
-		w.WriteHeader(400)
+		w.WriteHeader(401)
 		return
 	}
 
-	tokenUser, err := auth.ValidateJWT(bearerToken, cfg.jwtToken)
+	userID, err := auth.ValidateJWT(bearerToken, cfg.jwtToken)
 	if err != nil {
 		log.Print(err)
-		w.WriteHeader(500)
+		w.WriteHeader(401)
 		return
-	}
-	user_id, err := uuid.Parse(params.UserID)
-	if err != nil {
-		log.Printf("error parsing the user id: %v", err)
-		w.WriteHeader(500)
-		return
-	}
-	if tokenUser != user_id {
-		respondWithError(w, 401, "The JWT token is invalid")
 	}
 
-	cleanedBody := cleanProfanity(params.Body)
 	if len(params.Body) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
+		return
 	}
+	cleanedBody := cleanProfanity(params.Body)
 
 	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   cleanedBody,
-		UserID: user_id,
+		UserID: userID,
 	})
 	if err != nil {
 		log.Printf("failed to create a chirp record: %v", err)
@@ -243,9 +234,9 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password         string         `json:"password"`
-		Email            string         `json:"email"`
-		ExpiresInSeconds *time.Duration `json:"expires_in_seconds"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds *int   `json:"expires_in_seconds"`
 	}
 
 	var params parameters
@@ -257,12 +248,13 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var expirationTime time.Duration
+
 	if params.ExpiresInSeconds == nil {
 		expirationTime = time.Duration(1 * time.Hour)
-	} else if *params.ExpiresInSeconds > time.Hour {
+	} else if time.Duration(*params.ExpiresInSeconds)*time.Second > time.Hour {
 		expirationTime = time.Duration(1 * time.Hour)
 	} else {
-		expirationTime = *params.ExpiresInSeconds
+		expirationTime = time.Duration(*params.ExpiresInSeconds) * time.Second
 	}
 
 	user, err := cfg.dbQueries.GetUserByEmail(r.Context(), params.Email)

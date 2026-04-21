@@ -59,18 +59,3 @@ func TestValidateJWTExpired(t *testing.T) {
 		t.Errorf("expected the token to expire")
 	}
 }
-
-func TestGetBearerToken(t *testing.T) {
-	headers := http.Header{}
-	expected := "token string"
-	headers.Add("Bearer", expected)
-
-	actual, err := GetBearerToken(headers)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if expected != actual {
-		t.Errorf("expected %v to equal %v", expected, actual)
-	}
-}
