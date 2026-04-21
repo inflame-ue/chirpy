@@ -33,7 +33,7 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 		Subject:   userID.String(),
 	})
 
-	signedToken, err := token.SignedString(tokenSecret)
+	signedToken, err := token.SignedString([]byte(tokenSecret))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign the generated token: %v", err)
 	}
