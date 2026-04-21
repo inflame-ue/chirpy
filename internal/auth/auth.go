@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/alexedwards/argon2id"
@@ -60,4 +61,14 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	}
 
 	return parsedUUID, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	tokenString := headers.Get("Bearer")
+
+	if tokenString == "" {
+		return "", fmt.Errorf("please provide the jwt token")
+	}
+
+	return tokenString, nil
 }
