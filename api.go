@@ -350,6 +350,24 @@ func (cfg *apiConfig) refreshTokenHandler(w http.ResponseWriter, r *http.Request
 	respondWithJSON(w, 200, respBody)
 }
 
+func (cfg *apiConfig) revokeTokenHandler(w http.ResponseWriter, r *http.Request) {
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+
+	err = cfg.dbQueries.RevokeToken(r.Context(), bearerToken)
+	if err != nil {
+		log.Printf("failed to revoke token: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(204)
+}
+
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
