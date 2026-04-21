@@ -18,6 +18,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
+	jwtToken       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -226,8 +227,9 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string         `json:"password"`
+		Email            string         `json:"email"`
+		ExpiresInSeconds *time.Duration `json:"expires_in_seconds"`
 	}
 
 	var params parameters
@@ -236,6 +238,15 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error decoding the parameters: %v", err)
 		w.WriteHeader(500)
 		return
+	}
+
+	var expirationTime time.Duration
+	if params.ExpiresInSeconds == nil {
+		expirationTime = time.Duration(1 * time.Hour)
+	} else if *params.ExpiresInSeconds > time.Hour {
+		expirationTime = time.Duration(1 * time.Hour)
+	} else {
+		expirationTime = *params.ExpiresInSeconds
 	}
 
 	user, err := cfg.dbQueries.GetUserByEmail(r.Context(), params.Email)
@@ -257,17 +268,26 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.MakeJWT(user.ID, cfg.jwtToken, expirationTime)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(500)
+		return
+	}
+
 	type responseBody struct {
 		Id        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
 	}
 	respBody := responseBody{
 		Id:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 
 	respondWithJSON(w, 200, respBody)

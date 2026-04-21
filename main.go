@@ -21,8 +21,10 @@ func main() {
 	}
 	dbQueries := database.New(db)
 
+	jwtSecret := os.Getenv("SECRET_TOKEN")
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
+		jwtToken: jwtSecret,
 	}
 
 	filepathRoot := http.Dir(".")
