@@ -24,7 +24,7 @@ func main() {
 	jwtSecret := os.Getenv("SECRET_TOKEN")
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
-		jwtToken: jwtSecret,
+		jwtToken:  jwtSecret,
 	}
 
 	filepathRoot := http.Dir(".")
@@ -40,7 +40,8 @@ func main() {
 	mux.HandleFunc("POST /api/login", apiCfg.loginHandler)
 	mux.HandleFunc("GET /api/chirps", apiCfg.getChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.getChirpHandler)
-
+	mux.HandleFunc("POST /api/refresh", apiCfg.refreshTokenHandler)
+	
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 

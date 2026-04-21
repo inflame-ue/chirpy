@@ -303,6 +303,53 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 200, respBody)
 }
 
+func (cfg *apiConfig) refreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+
+	refreshToken, err := cfg.dbQueries.GetRefreshTokenByToken(r.Context(), bearerToken)
+	if err != nil {
+		log.Printf("failed to fetch token from the database: %v", err)
+		w.WriteHeader(401)
+		return
+	}
+	if refreshToken.ExpiresAt.Before(time.Now()) {
+		log.Print("the token has expired")
+		w.WriteHeader(401)
+		return
+	}
+	if refreshToken.RevokedAt.Valid {
+		log.Print("the token has been revoked")
+		w.WriteHeader(401)
+		return
+	}
+
+	user, err := cfg.dbQueries.GetUserByID(r.Context(), refreshToken.UserID)
+	if err != nil {
+		log.Printf("failed to fetch user: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtToken)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	type responseBody struct {
+		Token string `json:"token"`
+	}
+	respBody := responseBody{
+		Token: accessToken,
+	}
+	respondWithJSON(w, 200, respBody)
+}
+
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
