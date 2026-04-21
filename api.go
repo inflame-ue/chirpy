@@ -116,16 +116,32 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	cleanedBody := cleanProfanity(params.Body)
-	if len(params.Body) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(400)
+		return
 	}
 
+	tokenUser, err := auth.ValidateJWT(bearerToken, cfg.jwtToken)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(500)
+		return
+	}
 	user_id, err := uuid.Parse(params.UserID)
 	if err != nil {
 		log.Printf("error parsing the user id: %v", err)
 		w.WriteHeader(500)
 		return
+	}
+	if tokenUser != user_id {
+		respondWithError(w, 401, "The JWT token is invalid")
+	}
+
+	cleanedBody := cleanProfanity(params.Body)
+	if len(params.Body) > 140 {
+		respondWithError(w, 400, "Chirp is too long")
 	}
 
 	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
