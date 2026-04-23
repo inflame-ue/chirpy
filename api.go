@@ -102,6 +102,66 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, 201, respBody)
 }
 
+func (cfg *apiConfig) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var params parameters
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&params); err != nil {
+		log.Printf("error decoding parameters: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+	userID, err := auth.ValidateJWT(bearerToken, cfg.jwtToken)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		log.Printf("failed to hash password: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	user, err := cfg.dbQueries.UpdateUserEmailAndPassword(r.Context(), database.UpdateUserEmailAndPasswordParams{
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+		ID:             userID,
+	})
+	if err != nil {
+		log.Printf("failed to update user: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	type responseBody struct {
+		Id        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Email     string    `json:"email"`
+	}
+	respBody := responseBody{
+		Id:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+	respondWithJSON(w, 201, respBody)
+}
+
 func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
