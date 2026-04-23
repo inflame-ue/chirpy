@@ -228,6 +228,43 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	authorID := r.URL.Query().Get("author_id")
+	if authorID != "" {
+		authorID, err := uuid.Parse(authorID)
+		if err != nil {
+			log.Print("failed to parse the authorID")
+			w.WriteHeader(500)
+			return
+		}
+
+		chirps, err := cfg.dbQueries.GetChirpsByAuthor(r.Context(), authorID)
+		if err != nil {
+			log.Printf("failed to get chirps by author: %v", err)
+		}
+
+		type responseBody struct {
+			ID        uuid.UUID `json:"id"`
+			CreatedAt time.Time `json:"created_at"`
+			UpdatedAt time.Time `json:"updated_at"`
+			Body      string    `json:"body"`
+			UserID    uuid.UUID `json:"user_id"`
+		}
+
+		respBody := []responseBody{}
+		for _, chirp := range chirps {
+			tempResp := responseBody{
+				ID:        chirp.ID,
+				CreatedAt: chirp.CreatedAt,
+				UpdatedAt: chirp.UpdatedAt,
+				Body:      chirp.Body,
+				UserID:    chirp.UserID,
+			}
+			respBody = append(respBody, tempResp)
+		}
+		respondWithJSON(w, 200, respBody)
+		return
+	}
+
 	chirps, err := cfg.dbQueries.GetChirps(r.Context())
 	if err != nil {
 		log.Printf("failed to retrieve all chirp records: %v", err)
