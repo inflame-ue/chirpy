@@ -306,9 +306,26 @@ func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(401)
 		return
 	}
-	_, err = auth.ValidateJWT(bearerToken, cfg.jwtToken)
+	userID, err := auth.ValidateJWT(bearerToken, cfg.jwtToken)
 	if err != nil {
 		log.Print(err)
+		w.WriteHeader(403)
+		return
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("chirp not found: %v", err)
+			w.WriteHeader(404)
+			return
+		}
+		log.Printf("failed to retrive the record(smth bad happened): %v", err)
+		w.WriteHeader(500)
+		return
+	}
+	if chirp.UserID != userID {
+		log.Print("unauthorized chirp access")
 		w.WriteHeader(403)
 		return
 	}
@@ -316,7 +333,7 @@ func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request)
 	err = cfg.dbQueries.DeleterChirp(r.Context(), chirpID)
 	if err != nil {
 		log.Printf("failed to delete the chirp: %v", err)
-		w.WriteHeader(404)
+		w.WriteHeader(500)
 		return
 	}
 
