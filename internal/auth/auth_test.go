@@ -29,7 +29,7 @@ func TestCheckPasswordHash(t *testing.T) {
 func TestValidateJWT(t *testing.T) {
 	tokenSecret := "testing-secret-token"
 	expectedUserID := uuid.New()
-	token, err := MakeJWT(expectedUserID, tokenSecret, time.Duration(10*time.Minute))
+	token, err := MakeJWT(expectedUserID, tokenSecret)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestValidateJWT(t *testing.T) {
 func TestValidateJWTExpired(t *testing.T) {
 	tokenSecret := "testing-secret-token"
 	expectedUserID := uuid.New()
-	token, err := MakeJWT(expectedUserID, tokenSecret, time.Duration(1*time.Second))
+	token, err := MakeJWT(expectedUserID, tokenSecret)
 	if err != nil {
 		log.Fatal(err)
 	}

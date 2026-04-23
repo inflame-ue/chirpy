@@ -78,7 +78,7 @@ func GetBearerToken(headers http.Header) (string, error) {
 }
 
 func MakeRefreshToken() string {
-	var data []byte
+	data := make([]byte, 32)
 	rand.Read(data)
 
 	return hex.EncodeToString(data)
