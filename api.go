@@ -476,6 +476,49 @@ func (cfg *apiConfig) revokeTokenHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(204)
 }
 
+func (cfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID uuid.UUID `json:"user_id"`
+		} `json:"data"`
+	}
+
+	var params parameters
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&params); err != nil {
+		log.Printf("error decoding parameters: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(204)
+		return
+	}
+
+	_, err := cfg.dbQueries.GetUserByID(r.Context(), params.Data.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("failed to find the user with the associated id: %v", err)
+			w.WriteHeader(404)
+			return
+		}
+		log.Printf("failed to get the user(this is a db error): %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	err = cfg.dbQueries.UpdateToChirpyRed(r.Context(), params.Data.UserID)
+	if err != nil {
+		log.Printf("failed to updat the user to chirpy red: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(204)
+}
+
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)

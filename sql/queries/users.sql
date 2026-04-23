@@ -16,6 +16,11 @@ hashed_password = $2
 WHERE id = $3
 RETURNING *;
 
+-- name: UpdateToChirpyRed :exec
+UPDATE users
+SET is_chirpy_red = true
+WHERE id = $1;
+
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1;
 
