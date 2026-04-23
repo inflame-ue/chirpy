@@ -159,7 +159,7 @@ func (cfg *apiConfig) updateUserHandler(w http.ResponseWriter, r *http.Request) 
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 	}
-	respondWithJSON(w, 201, respBody)
+	respondWithJSON(w, 200, respBody)
 }
 
 func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +290,37 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 200, respBody)
+}
+
+func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, r *http.Request) {
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		log.Printf("failed to parse the chirp id: %v", err)
+		w.WriteHeader(400)
+		return
+	}
+
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+	_, err = auth.ValidateJWT(bearerToken, cfg.jwtToken)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(403)
+		return
+	}
+
+	err = cfg.dbQueries.DeleterChirp(r.Context(), chirpID)
+	if err != nil {
+		log.Printf("failed to delete the chirp: %v", err)
+		w.WriteHeader(404)
+		return
+	}
+
+	w.WriteHeader(204)
 }
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request) {
