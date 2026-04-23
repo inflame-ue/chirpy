@@ -490,6 +490,18 @@ func (cfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request
 		} `json:"data"`
 	}
 
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		log.Print(err)
+		w.WriteHeader(401)
+		return
+	}
+	if apiKey != cfg.polkaKey {
+		log.Print("the api key does not mathc the polka key")
+		w.WriteHeader(401)
+		return
+	}
+
 	var params parameters
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&params); err != nil {
