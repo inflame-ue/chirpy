@@ -515,7 +515,7 @@ func (cfg *apiConfig) polkaWebhookHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, err := cfg.dbQueries.GetUserByID(r.Context(), params.Data.UserID)
+	_, err = cfg.dbQueries.GetUserByID(r.Context(), params.Data.UserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Printf("failed to find the user with the associated id: %v", err)
