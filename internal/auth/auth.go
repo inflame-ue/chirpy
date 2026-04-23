@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -71,10 +72,21 @@ func GetBearerToken(headers http.Header) (string, error) {
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
 	if tokenString == "" {
-		return "", fmt.Errorf("please provide the jwt token")
+		return "", errors.New("please provide the jwt token")
 	}
 
 	return tokenString, nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	apiKey := headers.Get("Authorization")
+	apiKey = strings.TrimPrefix(apiKey, "ApiKey ")
+
+	if apiKey == "" {
+		return "", errors.New("please provide the API Key")
+	}
+
+	return apiKey, nil
 }
 
 func MakeRefreshToken() string {

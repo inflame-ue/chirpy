@@ -22,9 +22,11 @@ func main() {
 	dbQueries := database.New(db)
 
 	jwtSecret := os.Getenv("SECRET_TOKEN")
+	polkaKey := os.Getenv("POLKA_KEY")
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
 		jwtToken:  jwtSecret,
+		polkaKey:  polkaKey,
 	}
 
 	filepathRoot := http.Dir(".")
